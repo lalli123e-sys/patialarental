@@ -126,6 +126,16 @@ fun PaisaScreen(db: Db, refreshKey: Int, onChanged: () -> Unit) {
     var leads by remember { mutableStateOf(db.leads()) }
     var showAdd by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf("") }
+    var confirmRestore by remember { mutableStateOf(false) }
+
+    val open = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            note = Restore.run(ctx, db, uri)
+            pays = db.pays()
+            leads = db.leads()
+            onChanged()
+        }
+    }
 
     LaunchedEffect(refreshKey) {
         pays = db.pays()
@@ -272,16 +282,51 @@ fun PaisaScreen(db: Db, refreshKey: Int, onChanged: () -> Unit) {
         }
 
         Spacer(Modifier.height(14.dp))
-        Box(Modifier.fillMaxWidth()) {
-            BigButton("Backup file banao", bg1 = Ink2, bg2 = Ink) {
-                save.launch("amritpal-property-backup.json")
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(Modifier.weight(1f)) {
+                BigButton("Backup banao", bg1 = Ink2, bg2 = Ink) {
+                    save.launch("amritpal-property-backup.json")
+                }
+            }
+            Box(Modifier.weight(1f)) {
+                BigButton("Restore karo", bg1 = Color(0xFF3E8FD0), bg2 = Color(0xFF1F5E92)) {
+                    confirmRestore = true
+                }
             }
         }
         if (note.isNotBlank()) {
             Spacer(Modifier.height(8.dp))
             Text(note, color = Teal, fontSize = 12.sp)
         }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Backup mein leads, payments, albums aur calls aate hain. Photo files nahi — unhe WhatsApp par bhej ke rakh lo.",
+            color = Ink3, fontSize = 10.5.sp
+        )
         Spacer(Modifier.height(30.dp))
+    }
+
+    if (confirmRestore) {
+        AlertDialog(
+            onDismissRequest = { confirmRestore = false },
+            title = { Text("Backup se restore?") },
+            text = {
+                Text(
+                    "Jo data abhi app mein hai wo delete ho jayega aur backup file wala data aa jayega.\n\n" +
+                        "Pehle se backup liya hua hai na? Warna pehle 'Backup banao' dabao.",
+                    color = Ink2, fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmRestore = false
+                    open.launch(arrayOf("*/*"))
+                }) { Text("Haan, restore karo") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmRestore = false }) { Text("Cancel") }
+            }
+        )
     }
 
     if (showAdd) {
