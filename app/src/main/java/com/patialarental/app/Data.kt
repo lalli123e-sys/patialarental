@@ -21,6 +21,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 
 data class CallRow(val id: Long, val phone: String, val name: String, val ts: Long)
 
@@ -411,6 +412,111 @@ object Backup {
             true
         } catch (e: Exception) {
             false
+        }
+    }
+}
+
+object Restore {
+    fun run(ctx: Context, db: Db, uri: Uri): String {
+        return try {
+            val text = ctx.contentResolver.openInputStream(uri)?.use { it.bufferedReader().readText() }
+                ?: return "File khuli nahi"
+            val root = JSONObject(text)
+            val w = db.writableDatabase
+            var nl = 0
+            var np = 0
+            var nc = 0
+            var na = 0
+            var nph = 0
+            w.beginTransaction()
+            try {
+                w.delete("pays", null, null)
+                w.delete("photos", null, null)
+                w.delete("albums", null, null)
+                w.delete("calls", null, null)
+                w.delete("leads", null, null)
+
+                val leads = root.optJSONArray("leads")
+                if (leads != null) {
+                    for (i in 0 until leads.length()) {
+                        val o = leads.getJSONObject(i)
+                        val cv = ContentValues()
+                        cv.put("id", o.optLong("id"))
+                        cv.put("phone", o.optString("phone"))
+                        cv.put("name", o.optString("name"))
+                        cv.put("kind", o.optString("kind", "Tenant"))
+                        cv.put("area", o.optString("area"))
+                        cv.put("budget", o.optString("budget"))
+                        cv.put("note", o.optString("note"))
+                        cv.put("status", o.optString("status", "Naya"))
+                        cv.put("follow", o.optLong("follow"))
+                        if (w.insert("leads", null, cv) != -1L) nl++
+                    }
+                }
+
+                val pays = root.optJSONArray("pays")
+                if (pays != null) {
+                    for (i in 0 until pays.length()) {
+                        val o = pays.getJSONObject(i)
+                        val cv = ContentValues()
+                        cv.put("id", o.optLong("id"))
+                        cv.put("lid", o.optLong("lid"))
+                        cv.put("name", o.optString("name"))
+                        cv.put("phone", o.optString("phone"))
+                        cv.put("amount", o.optLong("amount"))
+                        cv.put("kind", o.optString("kind", "Brokerage"))
+                        cv.put("note", o.optString("note"))
+                        cv.put("ts", o.optLong("ts"))
+                        if (w.insert("pays", null, cv) != -1L) np++
+                    }
+                }
+
+                val calls = root.optJSONArray("calls")
+                if (calls != null) {
+                    for (i in 0 until calls.length()) {
+                        val o = calls.getJSONObject(i)
+                        val cv = ContentValues()
+                        cv.put("phone", norm(o.optString("phone")))
+                        cv.put("name", o.optString("name"))
+                        cv.put("ts", o.optLong("ts"))
+                        cv.put("kind", 0)
+                        if (w.insertWithOnConflict("calls", null, cv, SQLiteDatabase.CONFLICT_IGNORE) != -1L) nc++
+                    }
+                }
+
+                val albums = root.optJSONArray("albums")
+                if (albums != null) {
+                    for (i in 0 until albums.length()) {
+                        val o = albums.getJSONObject(i)
+                        val cv = ContentValues()
+                        cv.put("id", o.optLong("id"))
+                        cv.put("title", o.optString("title"))
+                        cv.put("area", o.optString("area"))
+                        cv.put("rent", o.optString("rent"))
+                        if (w.insert("albums", null, cv) != -1L) na++
+                    }
+                }
+
+                val photos = root.optJSONArray("photos")
+                if (photos != null) {
+                    for (i in 0 until photos.length()) {
+                        val o = photos.getJSONObject(i)
+                        val path = o.optString("path")
+                        if (path.isBlank() || !File(path).exists()) continue
+                        val cv = ContentValues()
+                        cv.put("album", o.optLong("album"))
+                        cv.put("path", path)
+                        if (w.insert("photos", null, cv) != -1L) nph++
+                    }
+                }
+
+                w.setTransactionSuccessful()
+            } finally {
+                w.endTransaction()
+            }
+            "Restore ho gaya ✓  $nl leads · $np payments · $na album · $nc calls"
+        } catch (e: Exception) {
+            "Restore fail: " + (e.message ?: "file sahi nahi hai")
         }
     }
 }
