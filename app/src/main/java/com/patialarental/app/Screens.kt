@@ -98,7 +98,7 @@ fun Root() {
             bump++
         }
         else -> MainTabs(
-            ctx, db, tab, { tab = it }, calls, leads, albums,
+            ctx, db, tab, { tab = it }, calls, leads, albums, bump,
             onLead = { leadId = it },
             onAlbum = { albumId = it },
             onChanged = { bump++ }
@@ -115,6 +115,7 @@ fun MainTabs(
     calls: List<CallRow>,
     leads: List<Lead>,
     albums: List<Album>,
+    refreshKey: Int,
     onLead: (Long) -> Unit,
     onAlbum: (Long) -> Unit,
     onChanged: () -> Unit
@@ -124,7 +125,8 @@ fun MainTabs(
             when (tab) {
                 0 -> CallsScreen(calls, leads, db, ctx, onLead)
                 1 -> LeadsScreen(leads, db, onLead, onChanged)
-                else -> AlbumsScreen(albums, db, onAlbum, onChanged)
+                2 -> AlbumsScreen(albums, db, onAlbum, onChanged)
+                else -> PaisaScreen(db, refreshKey, onChanged)
             }
         }
         TabBar(tab, onTab)
@@ -133,7 +135,7 @@ fun MainTabs(
 
 @Composable
 fun TabBar(sel: Int, onSel: (Int) -> Unit) {
-    val items = listOf("Calls", "Leads", "Photos")
+    val items = listOf("Calls", "Leads", "Photos", "Paisa")
     Row(
         Modifier
             .fillMaxWidth()
@@ -170,6 +172,11 @@ fun TabBar(sel: Int, onSel: (Int) -> Unit) {
 fun CallsScreen(calls: List<CallRow>, leads: List<Lead>, db: Db, ctx: Context, onLead: (Long) -> Unit) {
     val newCount = calls.count { c -> leads.none { it.phone == norm(c.phone) } }
     Column(Modifier.fillMaxSize()) {
+        Text(
+            "AMRITPAL PROPERTY  ·  98159 44507",
+            color = Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp,
+            modifier = Modifier.padding(start = 20.dp, top = 8.dp)
+        )
         ScreenTitle("Aaj ki calls", calls.size.toString() + " calls  ·  " + newCount + " naye lead")
         LazyColumn(Modifier.fillMaxSize()) {
             items(calls, key = { it.id }) { c ->
