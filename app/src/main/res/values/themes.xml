@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.PatialaRental" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#FAF5EC</item>
+        <item name="android:statusBarColor">#FAF5EC</item>
+        <item name="android:navigationBarColor">#FAF5EC</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>
