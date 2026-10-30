@@ -19,6 +19,8 @@ import android.provider.ContactsContract
 import android.telephony.TelephonyManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import org.json.JSONArray
+import org.json.JSONObject
 
 data class CallRow(val id: Long, val phone: String, val name: String, val ts: Long)
 
@@ -37,18 +39,66 @@ data class Lead(
 data class Album(val id: Long, val title: String, val area: String, val rent: String)
 data class Photo(val id: Long, val path: String)
 
+data class Pay(
+    val id: Long = 0L,
+    val lid: Long = 0L,
+    val name: String = "",
+    val phone: String = "",
+    val amount: Long = 0L,
+    val kind: String = "Brokerage",
+    val note: String = "",
+    val ts: Long = System.currentTimeMillis()
+)
+
 fun norm(p: String): String = p.filter { it.isDigit() }.takeLast(10)
 
-class Db(ctx: Context) : SQLiteOpenHelper(ctx, "patiala.db", null, 1) {
+class Db(ctx: Context) : SQLiteOpenHelper(ctx, "patiala.db", null, 2) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE leads(id INTEGER PRIMARY KEY AUTOINCREMENT, phone TEXT NOT NULL, name TEXT, kind TEXT, area TEXT, budget TEXT, note TEXT, status TEXT, follow INTEGER DEFAULT 0, created INTEGER)")
         db.execSQL("CREATE TABLE calls(id INTEGER PRIMARY KEY AUTOINCREMENT, phone TEXT NOT NULL, name TEXT, ts INTEGER NOT NULL, kind INTEGER, UNIQUE(phone, ts))")
         db.execSQL("CREATE TABLE albums(id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, area TEXT, rent TEXT, created INTEGER)")
         db.execSQL("CREATE TABLE photos(id INTEGER PRIMARY KEY AUTOINCREMENT, album INTEGER, path TEXT, created INTEGER)")
+        db.execSQL(CREATE_PAYS)
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {}
+    private val CREATE_PAYS =
+        "CREATE TABLE IF NOT EXISTS pays(id INTEGER PRIMARY KEY AUTOINCREMENT, lid INTEGER, name TEXT, phone TEXT, amount INTEGER, kind TEXT, note TEXT, ts INTEGER)"
+
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 2) db.execSQL(CREATE_PAYS)
+    }
+
+    fun pays(): List<Pay> {
+        val out = mutableListOf<Pay>()
+        readableDatabase.rawQuery("SELECT id, lid, name, phone, amount, kind, note, ts FROM pays ORDER BY ts DESC", null).use { c ->
+            while (c.moveToNext()) {
+                out.add(
+                    Pay(
+                        c.getLong(0), c.getLong(1), c.getString(2) ?: "", c.getString(3) ?: "",
+                        c.getLong(4), c.getString(5) ?: "Brokerage", c.getString(6) ?: "", c.getLong(7)
+                    )
+                )
+            }
+        }
+        return out
+    }
+
+    fun addPay(p: Pay): Long {
+        val cv = ContentValues()
+        cv.put("lid", p.lid)
+        cv.put("name", p.name)
+        cv.put("phone", p.phone)
+        cv.put("amount", p.amount)
+        cv.put("kind", p.kind)
+        cv.put("note", p.note)
+        cv.put("ts", p.ts)
+        return writableDatabase.insert("pays", null, cv)
+    }
+
+    fun deletePay(id: Long) {
+        writableDatabase.delete("pays", "id=?", arrayOf(id.toString()))
+    }
 
     fun calls(): List<CallRow> {
         val out = mutableListOf<CallRow>()
@@ -222,7 +272,7 @@ object Msg {
 
     fun intro(name: String, area: String, budget: String): String {
         val sb = StringBuilder(head(name))
-        sb.append("Amritpal Singh, *Patiala Rental*.\n\n")
+        sb.append("Amritpal Singh, *Amritpal Property*.\n\n")
         if (area.isNotBlank() || budget.isNotBlank()) {
             sb.append("*Available:* ")
             sb.append(area)
@@ -230,20 +280,20 @@ object Msg {
             sb.append(budget)
             sb.append("\n")
         }
-        sb.append("Visit dekhna chahenge? Aaj shaam ka time bhi hai.\n\n— Amritpal, 98765 43210")
+        sb.append("Visit dekhna chahenge? Aaj shaam ka time bhi hai.\n\n— Amritpal Singh, 98159 44507")
         return sb.toString()
     }
 
     fun followup(name: String, area: String): String =
         head(name) + "Jis " + (if (area.isBlank()) "flat" else area) + " ke baare mein baat hui thi — koi decision socha?\n\n" +
-            "Aaj hi visit fix kar dein, flat khaali hai.\n— *Patiala Rental*"
+            "Aaj hi visit fix kar dein, flat khaali hai.\n— *Amritpal Property*"
 
     fun rentDue(name: String, amount: String): String =
         head(name) + "Is mahine ka rent " + (if (amount.isBlank()) "" else "*₹" + amount + "* ") +
-            "baaki hai ji.\n\nUPI ya cash — jaisa aapko theek lage.\n— *Patiala Rental*"
+            "baaki hai ji.\n\nUPI ya cash — jaisa aapko theek lage.\n— *Amritpal Property*"
 
     fun visit(name: String, place: String): String =
-        head(name) + "Visit confirm 🙏\n\n*" + place + "*\nAaj shaam 5 baje. Pahunchna ho to ek call kar lein.\n\n— Amritpal, *Patiala Rental*"
+        head(name) + "Visit confirm 🙏\n\n*" + place + "*\nAaj shaam 5 baje. Pahunchna ho to ek call kar lein.\n\n— Amritpal Singh, *Amritpal Property*"
 }
 
 object Wa {
@@ -280,6 +330,87 @@ object Wa {
         try {
             ctx.startActivity(Intent.createChooser(i, "Photo kahan bhejein?").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         } catch (e: Exception) {
+        }
+    }
+}
+
+object Backup {
+    fun write(ctx: Context, db: Db, uri: Uri): Boolean {
+        return try {
+            val root = JSONObject()
+            root.put("app", "Amritpal Property")
+            root.put("owner", "Amritpal Singh")
+            root.put("phone", "9815944507")
+            root.put("exported", System.currentTimeMillis())
+
+            val leads = JSONArray()
+            for (l in db.leads()) {
+                val o = JSONObject()
+                o.put("id", l.id)
+                o.put("phone", l.phone)
+                o.put("name", l.name)
+                o.put("kind", l.kind)
+                o.put("area", l.area)
+                o.put("budget", l.budget)
+                o.put("note", l.note)
+                o.put("status", l.status)
+                o.put("follow", l.follow)
+                leads.put(o)
+            }
+            root.put("leads", leads)
+
+            val pays = JSONArray()
+            for (p in db.pays()) {
+                val o = JSONObject()
+                o.put("id", p.id)
+                o.put("lid", p.lid)
+                o.put("name", p.name)
+                o.put("phone", p.phone)
+                o.put("amount", p.amount)
+                o.put("kind", p.kind)
+                o.put("note", p.note)
+                o.put("ts", p.ts)
+                pays.put(o)
+            }
+            root.put("pays", pays)
+
+            val calls = JSONArray()
+            for (c in db.calls()) {
+                val o = JSONObject()
+                o.put("phone", c.phone)
+                o.put("name", c.name)
+                o.put("ts", c.ts)
+                calls.put(o)
+            }
+            root.put("calls", calls)
+
+            val albums = JSONArray()
+            for (a in db.albums()) {
+                val o = JSONObject()
+                o.put("id", a.id)
+                o.put("title", a.title)
+                o.put("area", a.area)
+                o.put("rent", a.rent)
+                albums.put(o)
+            }
+            root.put("albums", albums)
+
+            val photos = JSONArray()
+            for (a in db.albums()) {
+                for (p in db.photos(a.id)) {
+                    val o = JSONObject()
+                    o.put("album", a.id)
+                    o.put("path", p.path)
+                    photos.put(o)
+                }
+            }
+            root.put("photos", photos)
+
+            val out = ctx.contentResolver.openOutputStream(uri) ?: return false
+            out.use { it.write(root.toString(2).toByteArray()) }
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 }
