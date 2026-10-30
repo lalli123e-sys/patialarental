@@ -1,66 +1,58 @@
-# Patiala Rental — Android app
+# Amritpal Property — Android app
 
-Amritpal Singh ke rental/dealer kaam ke liye app. Sab kuch **phone ke andar** — koi cloud nahi, koi login nahi, koi mahine ka kharcha nahi.
+Amritpal Singh (Patiala) ke property/rental kaam ka app. Sab kuch **phone ke andar** — koi cloud nahi, koi login nahi, koi mahine ka kharcha nahi.
+
+Owner: **Amritpal Singh** · **98159 44507** · Patiala
 
 ## App kya karta hai
 
 | Screen | Kaam |
 |---|---|
-| **Calls** | Phone ki call log se aayi calls apne aap list mein. `+ Lead` dabao → lead ban jayega. `WA` se seedha WhatsApp. |
-| **Leads** | Saare leads, status (Naya → Baat hui → Visit → Deal / Lost), follow-up date. |
-| **Lead kholne par** | Rate/area/budget note, WhatsApp (message pehle se likha), Call, Follow-up date + reminder, Save. |
-| **Photos** | Flat ka album, gallery se photo daalo, multi-select, **WhatsApp par bhejo** (caption ready). |
-| **Reminder** | Follow-up date par phone notification — "Ramesh ji ko call karna hai". |
+| **Calls** | Phone ki call log se aayi calls apne aap list mein. `+ Lead` → lead ban jayegi. `WA` → seedha WhatsApp. |
+| **Leads** | Saare leads, status (Naya → Baat hui → Visit → Deal / Lost), follow-up date + reminder. |
+| **Lead detail** | Area/budget/note, WhatsApp templates, Call, follow-up, delete. |
+| **Photos** | Flat ka album, gallery se photo, multi-select, **WhatsApp par bhejo** caption ke saath. |
+| **Paisa** | **Is mahine ki kamai**, pichhle mahine se comparison (↑↓ %), **6 mahine ka line chart**, rent ledger (kaun kitna de raha hai), customer-wise payments, **backup file**. |
 
-Data phone ke andar SQLite mein rehta hai (`patiala.db`). Photos app ke private folder mein.
+## Paisa screen kaise use karo
 
-## APK kaise banega (free, GitHub par)
+- `+ Payment` dabao → customer ka naam, amount, aur type chuno:
+  - **Brokerage** = aapki kamai (chart aur "is mahine ki kamai" mein judta hai)
+  - **Rent** = tenant ka rent (rent ledger mein dikhta hai)
+  - **Advance** / **Other**
+- Chart pichhle 6 mahine ki brokerage kamai dikhata hai — jitna data daaloge, utni upar-neeche line banegi.
+- **Rent ledger**: jo leads `Tenant` hain aur jinke budget mein rent likha hai, unka is mahine ka status — `Aaya` / `Aadha` / `Baaki`.
+- **Backup file banao** → JSON file save hoti hai (saari leads, payments, albums, calls). Ise WhatsApp/Drive par rakh lo.
 
-Aapko kuch install nahi karna. Sirf 5 step:
+## APK build (GitHub par)
 
-1. **github.com** par free account banao (email se).
-2. Top-right `+` → **New repository**. Naam: `patiala-rental`. **Public** chuno. `Create repository`.
-3. Repo ke andar **"uploading an existing file"** link dabao. Is folder ki **saari files aur folders** drag karo —
-   `app`, `build.gradle.kts`, `settings.gradle.kts`, `gradle.properties`, `.github`, `README.md`.
-   Neeche **Commit changes** dabao.
+Repo: `github.com/lalli123e-sys/patialarental`
 
-   > `.github` folder upload mein chhup jaaye (kyunki naam dot se shuru hota hai) to:
-   > repo mein **Add file → Create new file** → naam likho `.github/workflows/build.yml`
-   > → isi repo wali `build.yml` ki copy-paste kar do → Commit.
-   > **Ye file zaroori hai** — isi se APK banta hai.
-4. Upar **Actions** tab kholo. Left mein **Build APK** → right mein **Run workflow** → green button.
-5. 6–8 minute ruko, phir usi run ke neeche **Artifacts → patiala-rental-apk** download karo.
-   Zip khologe to andar `app-debug.apk` milega.
+1. **Actions** tab → **Build APK** → **Run workflow**
+2. 3–5 minute
+3. Run ke neeche **Artifacts → patiala-rental-apk** → `app-debug.apk`
 
 ## Phone par install
 
-1. APK phone mein bhejo (WhatsApp/Drive/USB).
-2. APK par tap → "Unknown source se install" allow karo → **Install**.
-3. App kholo → **Allow** karo: Call logs, Contacts, Notifications.
-4. Bas — Calls screen par aapki calls dikhne lagengi.
+1. APK phone mein bhejo → tap → "Unknown source" allow → Install
+2. App kholo → **Call logs, Contacts, Notifications** allow karo
 
-> Pehli baar call list khaali lage to app band karke dobara kholo — call log se import ho jayegi.
+> Naya version install karne par purana data safe rehta hai (database upgrade ho jata hai).
 
-## Do sach (jo app nahi kar sakta)
+## Do sach
 
-- **WhatsApp apne aap message nahi bhejta.** App WhatsApp kholta hai, message pehle se likha hota hai — aap sirf **Send** dabate ho.
-- **Call log permission** Android 10+ par restricted hai. Sideloaded app mein ek baar Allow karna padta hai. Agar phone rok de, to Calls screen par note dikhega — tab manual `+ Naya` lead se kaam chalta rahega.
+- **WhatsApp apne aap message nahi bhejta** — app chat kholta hai, message pehle se likha hota hai, aap Send dabate ho.
+- **Call log permission** Android 10+ par restricted hai — sideloaded app mein ek baar Allow karna padta hai.
 
-## Project files
+## Files
 
 ```
 app/src/main/java/com/patialarental/app/
-  MainActivity.kt   - app entry
-  Data.kt           - database, call-log import, WhatsApp, notifications
+  MainActivity.kt   - entry
+  Data.kt           - DB, call-log import, WhatsApp, notifications, backup
   Ui.kt             - colours + clay components
-  Screens.kt        - Calls / Leads / Photos + tab bar
-  Detail.kt         - Lead detail, Album detail, photo grid
-.github/workflows/build.yml  - APK build
+  Screens.kt        - Calls / Leads / Photos / Paisa tabs
+  Detail.kt         - Lead detail, Album detail
+  Paisa.kt          - kamai chart, rent ledger, payments, backup
+.github/workflows/build.yml
 ```
-
-## Aage kya add kar sakte hain
-
-- Backup file (JSON) WhatsApp/Drive par
-- Rent ledger (kaun kitna de raha hai)
-- Cloud sync (agar staff ka doosra phone ho)
-- Play Store par daalna (uske liye call-log permission ka policy case banana padega)
